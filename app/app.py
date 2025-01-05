@@ -34,6 +34,7 @@ def process_file(*, file: AskFileResponse) -> List[Document]:
         raise TypeError("Only PDF files are supported")
 
     with NamedTemporaryFile() as tempfile:
+        print("file stuff", file)
         tempfile.write(file.content)
 
         ######################################################################
@@ -43,8 +44,9 @@ def process_file(*, file: AskFileResponse) -> List[Document]:
         # Langchain to load the file.
         # NOTE: https://python.langchain.com/docs/modules/data_connection/document_loaders/pdf#using-pdfplumber
         ######################################################################
-        loader = ...
-        documents = ...
+        loader = PDFPlumberLoader(tempfile.name)
+        documents = loader.load()
+        print("Loaded File length:", documents.len)
         ######################################################################
 
         ######################################################################
@@ -54,8 +56,14 @@ def process_file(*, file: AskFileResponse) -> List[Document]:
         # to chunk the file.
         # NOTE: https://python.langchain.com/docs/modules/data_connection/text_splitter#using-recursivecharactertextsplitter
         ######################################################################
-        text_splitter = ...
-        docs = ...
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=100,
+            length_function=len,
+            is_separator_regex=False
+        )
+        docs = text_splitter.split_documents(documents)
+        print("Chunked docs length:", docs.len)
         ######################################################################
 
         # We are adding source_id into the metadata here to denote which
@@ -82,7 +90,9 @@ async def on_chat_start():
     ######################################################################
     files = None
     while files is None:
-        files = await ...
+        files = await cl.AskFileMessage(
+            content="Please upload a pdf file to chat!", accept=["application/pdf"], max_size_mb=20
+        ).send()
     file = files[0]
     ######################################################################
 
